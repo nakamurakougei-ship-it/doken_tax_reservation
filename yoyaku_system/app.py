@@ -58,10 +58,34 @@ st.markdown("""
 if st.session_state['last_res']:
     res = st.session_state['last_res']
     
-    # 風船（st.balloons）を削除しました
+    # 強制的にライトモード（白背景・黒文字）にするための強力なCSS
+    st.markdown("""
+        <style>
+        /* 画面全体の背景と文字色を強制固定 */
+        html, body, [data-testid="stAppViewContainer"], .stApp {
+            background-color: #ffffff !important;
+            color: #111111 !important;
+        }
+        /* 入力欄やボタン以外のすべてのテキストを黒にする */
+        p, span, div, h1, h2, h3 {
+            color: #111111 !important;
+        }
+        /* 控えのボックス（ダークモードでも絶対に見えるように） */
+        .receipt-box { 
+            padding: 20px; 
+            border: 2px solid #4E7B4F; 
+            border-radius: 10px; 
+            background-color: #f0f4f0 !important; /* 薄い緑背景 */
+            color: #111111 !important; 
+            margin-bottom: 20px; 
+            font-family: sans-serif;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.title("✅ 予約を受け付けました")
     
-    # 予約内容のテキスト作成
+    # 65行目付近：カッコ()を使った管理しやすい書き方
     save_text = (
         f"確定申告学習会 予約控え\n"
         f"---------------------------------\n"
@@ -73,24 +97,20 @@ if st.session_state['last_res']:
     )
     
     display_html = save_text.replace('\n', '<br>')
-    
-    # 控えを表示（背景色をよりシンプルにしてエラーを回避）
-    st.markdown(f'''
-        <div style="padding: 20px; border: 2px solid #4E7B4F; border-radius: 10px; background-color: #ffffff; color: #333333; margin-bottom: 20px;">
-            <strong style="color: #4E7B4F;">【予約内容の確認】</strong><br><br>
-            {display_html}
-        </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(f'<div class="receipt-box">{display_html}</div>', unsafe_allow_html=True)
 
-    # 送信用URLの作成
+    # --- 送信用リンク（PC・スマホ両対応の公式プラグイン形式） ---
     encoded_text = urllib.parse.quote(save_text)
-    line_url = f"https://line.me/R/share?text={encoded_text}"
+    # PCでもスマホでも動作が最も安定しているURL
+    line_url = f"https://social-plugins.line.me/lineit/share?text={encoded_text}"
     mail_url = f"mailto:?subject={urllib.parse.quote('予約控え')}&body={encoded_text}"
     bom_save_text = "\ufeff" + save_text
 
     st.subheader("💾 控えを保存・共有する")
     st.download_button("ファイルとして保存", data=bom_save_text, file_name=f"yoyaku_{res.name}.txt")
-    st.markdown(f'<a href="{line_url}" target="_blank" class="custom-link-btn" style="background-color: #06C755;">LINEで送る</a>', unsafe_allow_html=True)
+    
+    # LINEボタン（PCならログイン画面へ、スマホならアプリへ）
+    st.markdown(f'<a href="{line_url}" target="_blank" rel="noopener noreferrer" class="custom-link-btn" style="background-color: #06C755;">LINEで送る</a>', unsafe_allow_html=True)
     st.markdown(f'<a href="{mail_url}" class="custom-link-btn" style="background-color: #4A90E2;">メールで送る</a>', unsafe_allow_html=True)
 
     st.divider()
@@ -98,7 +118,7 @@ if st.session_state['last_res']:
         st.session_state['last_res'] = None
         st.rerun()
     
-    st.stop() # 最後にこれを置くことで、余計な再読み込みを防ぎます
+    st.stop()
 
 # --- 通常の入力画面 ---
 st.title("確定申告学習会 予約フォーム")
