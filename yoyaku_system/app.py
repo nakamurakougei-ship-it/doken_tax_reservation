@@ -20,10 +20,10 @@ if 'last_res' not in st.session_state: st.session_state['last_res'] = None
 # --- 3. UIの設定 ---
 st.set_page_config(page_title="予約システム", layout="centered")
 
-# CSS設定：全体を白くする記述は削除し、パーツ（ボタン・枠）だけの指定にします
+# CSS設定：全体の色はスマホ設定に任せ、パーツ（枠・ボタン）だけ色を指定する
 st.markdown("""
     <style>
-    /* Streamlit標準のボタンを緑色にカスタマイズ */
+    /* 緑色のボタン（共通） */
     .stButton>button { 
         width: 100%; 
         background-color: #4E7B4F; 
@@ -42,9 +42,10 @@ st.markdown("""
         background-color: #f9f9f9; /* 薄いグレー（ほぼ白） */
         color: #333333; /* 文字は濃いグレー（ほぼ黒） */
         margin-bottom: 20px; 
+        font-family: sans-serif;
     }
     
-    /* LINE・メールボタンのスタイル */
+    /* LINE・メールボタンの共通スタイル */
     .custom-link-btn {
         display: flex; align-items: center; justify-content: center;
         text-decoration: none !important; width: 100%; height: 56px;
@@ -52,7 +53,7 @@ st.markdown("""
         border-radius: 10px; margin-bottom: 12px;
     }
     
-    /* 保存ボタンのスタイル調整 */
+    /* 保存ボタンの調整 */
     div.stDownloadButton > button {
         width: 100% !important; height: 56px !important;
         background-color: #4E7B4F !important; color: white !important;
@@ -80,13 +81,16 @@ if st.session_state['last_res']:
     
     display_html = save_text.replace('\n', '<br>')
     
-    # 控えボックスを表示
-    # style="color: #333;" を念のため直接書いて、ダークモードでも文字が見えるように保護
+    # 控えボックスを表示（ダークモードでも文字が見えるように直接style指定も併用）
     st.markdown(f'<div class="receipt-box" style="color: #333333;">{display_html}</div>', unsafe_allow_html=True)
 
-    # --- 送信用リンク ---
+    # --- 送信用リンク（ここを修正しました） ---
     encoded_text = urllib.parse.quote(save_text)
-    line_url = f"https://social-plugins.line.me/lineit/share?text={encoded_text}"
+    
+    # 【修正】スマホアプリが直接立ち上がる「Universal Link」形式
+    # これならスマホでブラウザログイン画面が出にくくなります
+    line_url = f"https://line.me/R/share?text={encoded_text}"
+    
     mail_url = f"mailto:?subject={urllib.parse.quote('予約控え')}&body={encoded_text}"
     bom_save_text = "\ufeff" + save_text
 
