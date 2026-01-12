@@ -54,37 +54,51 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 完了画面
+# --- 修正後の予約完了画面（アニメーションなし・安定重視） ---
 if st.session_state['last_res']:
     res = st.session_state['last_res']
-    st.balloons()
-    st.title("🎉 予約が完了しました")
     
-    save_text = f"確定申告学習会 予約控え\n---------------------------------\nお名前　　：{res.name} 様\n所属分会　：{res.branch} ({res.group_id}群)\n予約日時　：{res.date.strftime('%Y/%m/%d')} {res.time}\nご案内場所：{res.staff_id}番デスク\n---------------------------------"
+    # 風船（st.balloons）を削除しました
+    st.title("✅ 予約を受け付けました")
+    
+    # 予約内容のテキスト作成
+    save_text = (
+        f"確定申告学習会 予約控え\n"
+        f"---------------------------------\n"
+        f"お名前　　：{res.name} 様\n"
+        f"所属分会　：{res.branch} ({res.group_id}群)\n"
+        f"予約日時　：{res.date.strftime('%Y/%m/%d')} {res.time}\n"
+        f"ご案内場所：{res.staff_id}番デスク\n"
+        f"---------------------------------"
+    )
+    
     display_html = save_text.replace('\n', '<br>')
     
-    # 文字色を強制的に黒(#333)に指定して表示
-    st.markdown(f'<div class="receipt-box" style="color: #333333;">{display_html}</div>', unsafe_allow_html=True)
+    # 控えを表示（背景色をよりシンプルにしてエラーを回避）
+    st.markdown(f'''
+        <div style="padding: 20px; border: 2px solid #4E7B4F; border-radius: 10px; background-color: #ffffff; color: #333333; margin-bottom: 20px;">
+            <strong style="color: #4E7B4F;">【予約内容の確認】</strong><br><br>
+            {display_html}
+        </div>
+    ''', unsafe_allow_html=True)
 
-    # --- 送信用リンクの作成 ---
-    # 日本語をURL用に変換
+    # 送信用URLの作成
     encoded_text = urllib.parse.quote(save_text)
-    
-    # スマホアプリを直接呼ぶ形式（line://）を優先
-    line_url = f"line://msg/text/{encoded_text}"
+    line_url = f"https://line.me/R/share?text={encoded_text}"
     mail_url = f"mailto:?subject={urllib.parse.quote('予約控え')}&body={encoded_text}"
-
-    # 文字化け対策：BOM付きUTF-8にする
     bom_save_text = "\ufeff" + save_text
 
     st.subheader("💾 控えを保存・共有する")
     st.download_button("ファイルとして保存", data=bom_save_text, file_name=f"yoyaku_{res.name}.txt")
-    st.markdown(f'<a href="{line_url}" class="custom-link-btn" style="background-color: #06C755;">LINEで送る</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{line_url}" target="_blank" class="custom-link-btn" style="background-color: #06C755;">LINEで送る</a>', unsafe_allow_html=True)
     st.markdown(f'<a href="{mail_url}" class="custom-link-btn" style="background-color: #4A90E2;">メールで送る</a>', unsafe_allow_html=True)
 
+    st.divider()
     if st.button("トップに戻る"):
         st.session_state['last_res'] = None
         st.rerun()
-    st.stop()
+    
+    st.stop() # 最後にこれを置くことで、余計な再読み込みを防ぎます
 
 # --- 通常の入力画面 ---
 st.title("確定申告学習会 予約フォーム")
