@@ -58,32 +58,40 @@ st.markdown("""
 if st.session_state['last_res']:
     res = st.session_state['last_res']
     
-    # 強制的にライトモード（白背景・黒文字）にするための強力なCSS
+    # --- ダークモードを力技で「ライトモード」に反転させる魔法 ---
     st.markdown("""
         <style>
-        /* 画面全体の背景と文字色を強制固定 */
-        html, body, [data-testid="stAppViewContainer"], .stApp {
-            background-color: #ffffff !important;
-            color: #111111 !important;
+        /* Streamlitのシステム変数を直接白と黒に固定します */
+        :root {
+            --primary-color: #4E7B4F;
+            --background-color: #ffffff;
+            --secondary-background-color: #f0f4f0;
+            --text-color: #111111;
+            --font: sans-serif;
         }
-        /* 入力欄やボタン以外のすべてのテキストを黒にする */
-        p, span, div, h1, h2, h3 {
-            color: #111111 !important;
+        /* ダークモード設定が効いている場合でも強制的に白背景にします */
+        [data-theme="dark"] {
+            --background-color: #ffffff;
+            --secondary-background-color: #f0f4f0;
+            --text-color: #111111;
         }
-        /* 控えのボックス（ダークモードでも絶対に見えるように） */
+        /* 画面全体の暗転（オーバーレイ）を強制解除 */
+        .stApp {
+            background-color: white !important;
+        }
+        /* 予約控えの枠内が絶対に見えるように指定 */
         .receipt-box { 
-            padding: 20px; 
-            border: 2px solid #4E7B4F; 
-            border-radius: 10px; 
-            background-color: #f0f4f0 !important; /* 薄い緑背景 */
-            color: #111111 !important; 
-            margin-bottom: 20px; 
-            font-family: sans-serif;
+            background-color: #f9f9f9 !important; 
+            color: #111111 !important;
+            border: 2px solid #4E7B4F !important;
+            padding: 20px;
+            border-radius: 10px;
         }
         </style>
     """, unsafe_allow_html=True)
 
     st.title("✅ 予約を受け付けました")
+    # ...以下、save_textの作成やボタンの表示へ続く
     
     # 65行目付近：カッコ()を使った管理しやすい書き方
     save_text = (
