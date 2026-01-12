@@ -17,83 +17,57 @@ class Reservation:
 if 'reservations' not in st.session_state: st.session_state['reservations'] = []
 if 'last_res' not in st.session_state: st.session_state['last_res'] = None
 
-# --- 3. UIの設定（ライトモードに固定するための工夫） ---
+# --- 3. UIの設定 ---
 st.set_page_config(page_title="予約システム", layout="centered")
 
+# CSS設定：全体を白くする記述は削除し、パーツ（ボタン・枠）だけの指定にします
 st.markdown("""
     <style>
-    /* 全体の背景と文字色を強制指定（ダークモード対策） */
-    .main { background-color: #ffffff !important; color: #333333 !important; }
-    h1, h2, h3, p, span, label { color: #333333 !important; }
+    /* Streamlit標準のボタンを緑色にカスタマイズ */
+    .stButton>button { 
+        width: 100%; 
+        background-color: #4E7B4F; 
+        color: white !important; 
+        height: 3.5em; 
+        border-radius: 10px; 
+        font-weight: bold; 
+        border: none;
+    }
     
-    .stButton>button { width: 100%; background-color: #4E7B4F; color: white !important; height: 3.5em; border-radius: 10px; font-weight: bold; }
-    
-    /* 控え用ボックス：文字色を黒に固定 */
+    /* 予約控えボックス：ここだけは「白背景・黒文字」に固定して見やすくする */
     .receipt-box { 
         padding: 20px; 
         border: 2px solid #4E7B4F; 
         border-radius: 10px; 
-        background-color: #f9f9f9 !important; 
-        color: #333333 !important; 
+        background-color: #f9f9f9; /* 薄いグレー（ほぼ白） */
+        color: #333333; /* 文字は濃いグレー（ほぼ黒） */
         margin-bottom: 20px; 
     }
     
-    /* 各種ボタンの共通スタイル */
+    /* LINE・メールボタンのスタイル */
     .custom-link-btn {
         display: flex; align-items: center; justify-content: center;
         text-decoration: none !important; width: 100%; height: 56px;
         color: white !important; font-size: 16px; font-weight: bold;
         border-radius: 10px; margin-bottom: 12px;
     }
+    
+    /* 保存ボタンのスタイル調整 */
     div.stDownloadButton > button {
         width: 100% !important; height: 56px !important;
         background-color: #4E7B4F !important; color: white !important;
-        margin-bottom: 12px !important; border-radius: 10px !important;
+        margin-bottom: 12px !important; border-radius: 10px !important; border: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 完了画面
-# --- 修正後の予約完了画面（アニメーションなし・安定重視） ---
+# --- 予約完了時の画面 ---
 if st.session_state['last_res']:
     res = st.session_state['last_res']
     
-    # --- ダークモードを力技で「ライトモード」に反転させる魔法 ---
-    st.markdown("""
-        <style>
-        /* Streamlitのシステム変数を直接白と黒に固定します */
-        :root {
-            --primary-color: #4E7B4F;
-            --background-color: #ffffff;
-            --secondary-background-color: #f0f4f0;
-            --text-color: #111111;
-            --font: sans-serif;
-        }
-        /* ダークモード設定が効いている場合でも強制的に白背景にします */
-        [data-theme="dark"] {
-            --background-color: #ffffff;
-            --secondary-background-color: #f0f4f0;
-            --text-color: #111111;
-        }
-        /* 画面全体の暗転（オーバーレイ）を強制解除 */
-        .stApp {
-            background-color: white !important;
-        }
-        /* 予約控えの枠内が絶対に見えるように指定 */
-        .receipt-box { 
-            background-color: #f9f9f9 !important; 
-            color: #111111 !important;
-            border: 2px solid #4E7B4F !important;
-            padding: 20px;
-            border-radius: 10px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     st.title("✅ 予約を受け付けました")
-    # ...以下、save_textの作成やボタンの表示へ続く
     
-    # 65行目付近：カッコ()を使った管理しやすい書き方
+    # ()を使ったスッキリした書き方
     save_text = (
         f"確定申告学習会 予約控え\n"
         f"---------------------------------\n"
@@ -105,11 +79,13 @@ if st.session_state['last_res']:
     )
     
     display_html = save_text.replace('\n', '<br>')
-    st.markdown(f'<div class="receipt-box">{display_html}</div>', unsafe_allow_html=True)
+    
+    # 控えボックスを表示
+    # style="color: #333;" を念のため直接書いて、ダークモードでも文字が見えるように保護
+    st.markdown(f'<div class="receipt-box" style="color: #333333;">{display_html}</div>', unsafe_allow_html=True)
 
-    # --- 送信用リンク（PC・スマホ両対応の公式プラグイン形式） ---
+    # --- 送信用リンク ---
     encoded_text = urllib.parse.quote(save_text)
-    # PCでもスマホでも動作が最も安定しているURL
     line_url = f"https://social-plugins.line.me/lineit/share?text={encoded_text}"
     mail_url = f"mailto:?subject={urllib.parse.quote('予約控え')}&body={encoded_text}"
     bom_save_text = "\ufeff" + save_text
@@ -117,7 +93,6 @@ if st.session_state['last_res']:
     st.subheader("💾 控えを保存・共有する")
     st.download_button("ファイルとして保存", data=bom_save_text, file_name=f"yoyaku_{res.name}.txt")
     
-    # LINEボタン（PCならログイン画面へ、スマホならアプリへ）
     st.markdown(f'<a href="{line_url}" target="_blank" rel="noopener noreferrer" class="custom-link-btn" style="background-color: #06C755;">LINEで送る</a>', unsafe_allow_html=True)
     st.markdown(f'<a href="{mail_url}" class="custom-link-btn" style="background-color: #4A90E2;">メールで送る</a>', unsafe_allow_html=True)
 
