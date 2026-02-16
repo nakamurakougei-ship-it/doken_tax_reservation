@@ -39,11 +39,10 @@ def get_or_create_uid(doc, name, tel, bunkai):
     # 既存チェック（電話番号は5列目：インデックス4）
     for row in records[1:]:
         if len(row) > 4 and row[4] == tel:
-            return row[0] # 既存のUIDを返す
+            return row[0]
             
     # 新規発行
     new_uid = f"U{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-    # UID, 名前, 分会, 群番号(仮), 電話番号, 登録日時
     master_sheet.append_row([new_uid, name, bunkai, "-", tel, datetime.datetime.now().isoformat()])
     return new_uid
 
@@ -79,11 +78,10 @@ def get_next_available_slot(doc, target_date_str):
     all_records = sheet.get_all_values()[1:]
     occupied_slots = set()
     for row in all_records:
-        # 電話番号追加によりデスク番号が10列目（インデックス9）に移動したため修正
         if len(row) >= 10:
             occupied_slots.add((row[0], row[9]))
 
-    for s_id in range(1, 11): # 10番デスクまで
+    for s_id in range(1, 11): 
         staff_str = f"{s_id}番デスク"
         for t_str in TIME_SLOTS:
             dt_key = f"{target_date_str} {t_str}"
@@ -152,6 +150,7 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
 st.title(f"{config['branch_name']}")
 st.subheader("確定申告学習会 予約フォーム")
 
+# 1. 分会の選択
 bunkai_list = [None] + list(config["bunkai_master"].keys())
 selected_bunkai = st.selectbox("あなたの分会を選択", options=bunkai_list)
 
@@ -160,10 +159,28 @@ if selected_bunkai:
     st.info(f"📅 {selected_bunkai} の受付日： **{target_date_str}**")
     
     with st.form("reserve_form"):
+        # 2. 情報の入力
         name = st.text_input("お名前（必須）")
         tel = st.text_input("電話番号（必須・半角数字のみ）")
         group_id = st.text_input("群番号")
+        
+        # 申告区分
         tax_type = st.radio("申告区分", ["白色申告", "青色申告（電話予約のみ）"], horizontal=True)
+        
+        # インボイス
+        st.write("**インボイス**")
+        has_invoice = st.radio("インボイスの登録はありますか？", ["なし", "あり"], horizontal=True, label_visibility="collapsed")
+        
+        taxation_method = "-"
+        if has_invoice == "あり":
+            taxation_method = st.selectbox("課税方式を選択してください", ["本則課税", "簡易課税"])
+            invoice_status = f"あり（{taxation_method}）"
+        else:
+            invoice_status = "なし"
+            
+        # 経験（確定申告は初めて？）
+        st.write("**確定申告は初めて？**")
+        is_first_time = st.radio("今回が初めての確定申告ですか？", ["はい", "いいえ"], horizontal=True, label_visibility="collapsed")
         
         st.write("---")
         st.write("上記の内容で間違いなければ、「予約を確定する」を押してください。")
@@ -173,17 +190,15 @@ if selected_bunkai:
             if not name or not tel:
                 st.warning("お名前と電話番号は必須入力です。")
             elif "青色" in tax_type:
-                st.error("青色申告は電話予約のみとなります。")
+                st.error("青色申告は電話でお申し込みください。")
             else:
                 with st.spinner('予約を処理中...'):
-                    # 1. 最新の空き枠を確保
                     final_time, final_staff = get_next_available_slot(branch_doc, target_date_str)
                     
                     if final_time:
-                        # 2. UIDの取得・発行
                         uid = get_or_create_uid(branch_doc, name, tel, selected_bunkai)
                         
-                        # 3. 予約台帳へ書き込み（全11項目）
+                        # 予約台帳へ書き込み（備考1にインボイス、備考2に初めてフラグを格納）
                         new_row = [
                             f"{target_date_str} {final_time}", # A: 日時＋枠
                             name,                             # B: 氏名
@@ -191,18 +206,16 @@ if selected_bunkai:
                             group_id,                         # D: 群番号
                             tel,                              # E: 電話番号
                             tax_type,                         # F: 申告区分
-                            "-",                              # G: 備考1
-                            "-",                              # H: 備考2
+                            invoice_status,                   # G: 備考1（インボイス）
+                            f"初めて:{is_first_time}",          # H: 備考2（経験）
                             "-",                              # I: 備考3
                             f"{final_staff}番デスク",          # J: デスク番号
                             uid                               # K: UID
                         ]
                         branch_doc.worksheet("予約台帳").append_row(new_row)
                         
-                        # 4. ログの記録
                         write_action_log(branch_doc, uid, "RESERVE_CREATE", "SUCCESS", f"Slot: {final_time}")
                         
-                        # 5. 完了画面へ
                         st.session_state['last_res'] = {
                             "uid": uid, "name": name, "bunkai": selected_bunkai, 
                             "date": target_date_str, "time": final_time, "staff_id": f"{final_staff}番デスク"
