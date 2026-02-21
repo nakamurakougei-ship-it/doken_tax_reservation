@@ -121,8 +121,6 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
     res = st.session_state['last_res']
     st.title(f"✅ {config['branch_name']}")
     st.subheader("予約が確定しました")
-
-    venue_name = "西多摩支部会館３階"
     
     save_text = (
         f"【{config['branch_name']} 予約控え】\n"
@@ -131,9 +129,9 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
         f"お名前：{res['name']} 様\n"
         f"分会名：{res['bunkai']}\n"
         f"日時　：{res['date']} {res['time']}\n"
-        f"場所　：{venue_name}\n"
+        f"場所　：{res['staff_id']}\n"
         f"---------------------------------\n"
-        f"この画面を必ず保存してください。変更・キャンセルは以下よりお願いします\n"
+        f"★変更・キャンセルは以下よりお願いします\n"
         f"{config['dify_url']}"
     )
     
