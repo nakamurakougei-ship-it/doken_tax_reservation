@@ -1,6 +1,9 @@
 import streamlit as st
 import datetime
 import urllib.parse
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 import gspread
 from google.oauth2.service_account import Credentials
 import time
@@ -82,6 +85,67 @@ def get_next_available_slot(doc, target_date_str):
                 return t_str, s_id
     return None, None
 
+def make_ics(branch_name: str, date_str: str, time_str: str, venue: str, description: str) -> str:
+    """予約内容から iCalendar(.ics) 形式の文字列を生成。iPhone/Android 両対応。"""
+    # time_str は "09:30 - 10:20" 形式
+    parts = time_str.split("-")
+    start_part = (parts[0].strip() if len(parts) > 0 else "09:30").replace(" ", "")
+    end_part = (parts[1].strip() if len(parts) > 1 else "10:20").replace(" ", "")
+    def hm(s):
+        p = s.split(":")
+        h = p[0].strip().zfill(2) if p else "09"
+        m = p[1].strip().zfill(2) if len(p) > 1 else "00"
+        return h, m
+    start_h, start_m = hm(start_part)
+    end_h, end_m = hm(end_part)
+    # date_str は "2025-03-15" 形式 → 20250315
+    date_compact = date_str.replace("-", "")
+    dt_start = f"{date_compact}T{start_h}{start_m}00"
+    dt_end = f"{date_compact}T{end_h}{end_m}00"
+    summary = f"{branch_name} 確定申告学習会 予約"
+    # DESCRIPTION は改行を \n で、カンマ・バックスラッシュはエスケープ
+    desc_escaped = description.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    ics = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//YoyakuSystem//JP\r\n"
+        "CALSCALE:GREGORIAN\r\n"
+        "BEGIN:VEVENT\r\n"
+        f"DTSTART:{dt_start}\r\n"
+        f"DTEND:{dt_end}\r\n"
+        f"SUMMARY:{summary}\r\n"
+        f"LOCATION:{venue}\r\n"
+        f"DESCRIPTION:{desc_escaped}\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    return ics
+
+def send_reservation_email(to_addr: str, subject: str, body: str) -> bool:
+    """控えメールをSMTPで送信。secrets に [smtp] が無い場合は何もしない。"""
+    if "smtp" not in st.secrets:
+        return False
+    try:
+        smtp = st.secrets["smtp"]
+        host = smtp.get("host", "smtp.gmail.com")
+        port = int(smtp.get("port", 587))
+        user = smtp.get("user", "")
+        password = smtp.get("password", "")
+        from_addr = smtp.get("from_addr", user)
+        if not user or not password:
+            return False
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = Header(subject, "utf-8")
+        msg["From"] = from_addr
+        msg["To"] = to_addr
+        with smtplib.SMTP(host, port) as server:
+            server.starttls()
+            server.login(user, password)
+            server.sendmail(from_addr, [to_addr], msg.as_string())
+        return True
+    except Exception:
+        return False
+
 # --- 4. UI/CSS設定 ---
 st.set_page_config(page_title="確定申告予約システム", layout="centered")
 st.markdown("""
@@ -101,6 +165,10 @@ st.markdown("""
         color: white !important; font-size: 16px; font-weight: bold;
         border-radius: 10px; margin-bottom: 10px; background-color: #06C755;
     }
+    .custom-link-btn.mail {
+        background-color: #2563eb;
+    }
+    .custom-link-btn.mail:hover { background-color: #1d4ed8; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -133,9 +201,29 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
     )
    
     st.markdown(f'<div class="receipt-box">{save_text.replace("\n","<br>")}</div>', unsafe_allow_html=True)
-    st.info("💡 画面をスクリーンショットして保存してください。")
+    st.info("画面をスクリーンショットして保存するか、以下のいずれかを利用して保存してください。")
     encoded_text = urllib.parse.quote(save_text)
     st.markdown(f'<a href="https://line.me/R/share?text={encoded_text}" class="custom-link-btn">LINEで送る</a>', unsafe_allow_html=True)
+    mail_subject = urllib.parse.quote(f"【{config['branch_name']}】予約控え {res.get('uid','')}")
+    mail_body = urllib.parse.quote(save_text)
+    st.markdown(f'<a href="mailto:?subject={mail_subject}&body={mail_body}" class="custom-link-btn mail">メールで送る</a>', unsafe_allow_html=True)
+    ics_content = make_ics(config["branch_name"], res["date"], res["time"], VENUE_NAME, save_text)
+    st.download_button(
+        "📅 カレンダーに追加",
+        data=ics_content.encode("utf-8"),
+        file_name="yoyaku.ics",
+        mime="text/calendar",
+        use_container_width=True,
+    )
+    st.caption("※ iPhone・Android でダウンロード後、ファイルを開くとカレンダーに追加できます。")
+    if res.get("email_sent"):
+        st.success(f"控えを {res.get('email','')} に送信しました。")
+    with st.expander("💡 他にこんな通知方法もあります"):
+        st.markdown("""
+        - **SMS**：Twilio などの API で電話番号に控えを送信（有料・設定必要）
+        - **PDFダウンロード**：控えをPDFで生成し、ボタンでダウンロード
+        - **QRコード**：控えテキストや予約URLをQRで表示し、スマホで保存
+        """)
    
     if st.button("トップに戻る"):
         st.session_state['last_res'] = None
@@ -157,12 +245,13 @@ if selected_bunkai:
     name = st.text_input("お名前（必須）")
     raw_tel = st.text_input("電話番号（必須・ハイフンなしで入力）")
     tel = raw_tel.replace("-", "").replace(" ", "")
+    email = st.text_input("メールアドレス（任意・控えを送る場合）", placeholder="example@email.com").strip()
    
     group_id = st.text_input("群番号")
    
     tax_type = st.radio("申告区分", ["白色申告", "青色申告（電話予約のみ）"], horizontal=True)
     if "青色" in tax_type:
-        st.error("⚠️ 青色申告の方は、お手数ですが直接支部へお電話で予約してください。\n\n 📞 西多摩支部：0428-22-3721")
+        st.error("青色申告の方は、お手数ですが直接支部へお電話で予約してください。\n\n 西多摩支部：0428-22-3721")
 
     st.write("**インボイス**")
     has_invoice = st.radio("インボイスの登録はありますか？", ["なし", "あり"], horizontal=True, label_visibility="collapsed")
@@ -217,11 +306,33 @@ if selected_bunkai:
                         
                         if response.status_code == 200:
                             write_action_log(branch_doc, uid, "RESERVE_CREATE", "SUCCESS", f"Slot: {final_time}")
-                            
+                            save_text_for_email = (
+                                f"【{config['branch_name']} 予約控え】\n"
+                                f"---------------------------------\n"
+                                f"予約ID：{uid}\n"
+                                f"お名前：{name} 様\n"
+                                f"分会名：{selected_bunkai}\n"
+                                f"日時　：{target_date_str} {final_time}\n"
+                                f"場所　：{VENUE_NAME}\n"
+                                f"---------------------------------\n"
+                                f"■インボイス：{invoice_status}\n"
+                                f"■確定申告：{is_first_time}\n"
+                                f"---------------------------------\n"
+                                f"★変更・キャンセルは以下よりお願いします\n"
+                                f"{config['dify_url']}"
+                            )
+                            email_sent = False
+                            if email and "@" in email:
+                                email_sent = send_reservation_email(
+                                    email,
+                                    f"【{config['branch_name']}】予約控え {uid}",
+                                    save_text_for_email,
+                                )
                             st.session_state['last_res'] = {
                                 "uid": uid, "name": name, "bunkai": selected_bunkai,
                                 "date": target_date_str, "time": final_time,
-                                "invoice": invoice_status, "first_time": is_first_time
+                                "invoice": invoice_status, "first_time": is_first_time,
+                                "email": email or None, "email_sent": email_sent,
                             }
                             st.rerun()
                         else:
