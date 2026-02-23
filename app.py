@@ -279,7 +279,7 @@ if selected_bunkai:
                     
                     # 2. GASへ送信するデータの準備
                    
-                    GAS_URL = "https://script.google.com/macros/s/AKfycbyqy9LrqLbUHFz5p45QbgerW60CHrSqc2jtZJrQ4_6eE4zrBdEYtrnnRpBV_c8M6V39Pw/exec"
+                    GAS_URL = "https://script.google.com/macros/s/AKfycbydoy0NUt60tUsQ4s1MAto29K_hbb7ePlEQtGCOE84TVxI2P4g191-RWMa5_L8QMlQ6rQ/exec"
                     
                     payload = {
                         "datetime": f"{target_date_str} {final_time}",
