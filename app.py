@@ -81,6 +81,7 @@ def get_next_available_slot(doc, formatted_date):
     return None, None
 
 def make_ics(branch_name: str, date_str: str, time_str: str, venue: str, description: str) -> str:
+    # time_str は "09:30 - 10:20" 形式
     parts = time_str.split("-")
     start_part = (parts[0].strip() if len(parts) > 0 else "09:30").replace(" ", "")
     end_part = (parts[1].strip() if len(parts) > 1 else "10:20").replace(" ", "")
@@ -91,6 +92,7 @@ def make_ics(branch_name: str, date_str: str, time_str: str, venue: str, descrip
         return h, m
     start_h, start_m = hm(start_part)
     end_h, end_m = hm(end_part)
+    # 西暦統一対応：date_str ("2026/02/24") からスラッシュを除去
     date_compact = date_str.replace("/", "").replace("-", "")
     dt_start = f"{date_compact}T{start_h}{start_m}00"
     dt_end = f"{date_compact}T{end_h}{end_m}00"
@@ -136,103 +138,27 @@ def send_reservation_email(to_addr: str, subject: str, body: str) -> bool:
     except Exception:
         return False
 
-# --- 4. UI/CSS設定（デザイン刷新版） ---
+# --- 4. UI/CSS設定 ---
 st.set_page_config(page_title="確定申告予約システム", layout="centered")
-
 st.markdown("""
     <style>
-    /* 全体の背景 */
-    .stApp {
-        background-color: #f8f9fa;
-        font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
-    }
-    
-    /* 2026年度バッジ：さらに大きく目立たせる */
-    .nendo-badge {
-        display: inline-block;
-        background-color: #4E7B4F;
-        color: white;
-        padding: 6px 20px;
-        border-radius: 20px;
-        font-size: 1.2rem;
-        font-weight: 700;
-        margin-bottom: 1.2rem;
-        letter-spacing: 0.1em;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* メインタイトル */
-    .main-title {
-        color: #2c3e50;
-        font-size: 2.2rem;
-        font-weight: 800;
-        margin-bottom: 0.5rem;
-        line-height: 1.2;
-    }
-    
-    /* サブタイトル */
-    .sub-title {
-        color: #5d6d7e;
-        font-size: 1.25rem;
-        margin-bottom: 2.5rem;
-        font-weight: 500;
-    }
-
-    /* 入力エリアのカード型デザイン */
-    .stFormContainer {
-        background-color: white;
-        padding: 40px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        margin-bottom: 2rem;
-    }
-
-    /* フォームラベルの太字化 */
-    .stMarkdown p {
-        font-weight: 600;
-        color: #34495e;
-    }
-
-    /* 確定ボタン：洗練されたアニメーションと色 */
-    div.stButton > button {
-        width: 100%;
-        height: 3.8em;
-        background-color: #4E7B4F !important;
-        color: white !important;
-        font-size: 1.15rem !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        border: none !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 6px rgba(78, 123, 79, 0.2) !important;
-        margin-top: 1rem;
-    }
-    
-    div.stButton > button:hover {
-        background-color: #3e623f !important;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(78, 123, 79, 0.3) !important;
-    }
-
-    /* インフォボックスの装飾 */
-    .stAlert {
-        border-radius: 12px !important;
-        border: none !important;
-        background-color: #e8f5e9 !important;
-        color: #2e7d32 !important;
-    }
-    
-    /* 控え用ボックス */
+    .stApp { background-color: white; }
+    .nendo-label { color: #666; font-size: 0.9em; margin-bottom: -15px; }
     .receipt-box {
-        padding: 25px; 
-        border: 1px solid #e0e0e0;
-        border-left: 6px solid #4E7B4F;
-        border-radius: 12px;
-        background-color: #ffffff; 
-        color: #333; 
-        margin-bottom: 20px;
-        line-height: 1.8;
+        padding: 20px; border: 2px solid #4E7B4F; border-radius: 10px;
+        background-color: #f9f9f9; color: #333; margin-bottom: 20px;
     }
+    div.stButton > button {
+        width: 100%; height: 3.5em; background-color: #4E7B4F;
+        color: white; font-weight: bold; border-radius: 10px;
+    }
+    .custom-link-btn {
+        display: flex; align-items: center; justify-content: center;
+        text-decoration: none !important; width: 100%; height: 50px;
+        color: white !important; font-size: 16px; font-weight: bold;
+        border-radius: 10px; margin-bottom: 10px; background-color: #06C755;
+    }
+    .custom-link-btn.mail { background-color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -245,11 +171,9 @@ VENUE_NAME = "西多摩支部会館３階"
 # 【完了画面】
 if 'last_res' in st.session_state and st.session_state['last_res']:
     res = st.session_state['last_res']
-    st.markdown('<div style="text-align: center; margin-top: 2rem;">', unsafe_allow_html=True)
-    st.markdown('<span class="nendo-badge">2026年度</span>', unsafe_allow_html=True)
-    st.markdown(f'<h1 class="main-title">✅ {config["branch_name"]}</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">予約が確定しました</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size: 24px; font-weight: bold; color: #4E7B4F; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
+    st.title(f"✅ {config['branch_name']}")
+    st.subheader("予約が確定しました")
     
     save_text = (
         f"【{config['branch_name']} 予約控え】\n"
@@ -268,56 +192,47 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
     )
     
     st.markdown(f'<div class="receipt-box">{save_text.replace("\n","<br>")}</div>', unsafe_allow_html=True)
-    st.info("画面を保存するか、以下のボタンを利用して控えを送信してください。")
-    
     encoded_text = urllib.parse.quote(save_text)
     st.markdown(f'<a href="https://line.me/R/share?text={encoded_text}" class="custom-link-btn">LINEで送る</a>', unsafe_allow_html=True)
-    
     mail_subject = urllib.parse.quote(f"【{config['branch_name']}】予約控え {res.get('uid','')}")
     mail_body = urllib.parse.quote(save_text)
     st.markdown(f'<a href="mailto:?subject={mail_subject}&body={mail_body}" class="custom-link-btn mail">メールで送る</a>', unsafe_allow_html=True)
-    
     ics_content = make_ics(config["branch_name"], res["date"], res["time"], VENUE_NAME, save_text)
-    st.download_button("📅 カレンダーに追加", data=ics_content.encode("utf-8"), file_name="yoyaku.ics", mime="text/calendar", use_container_width=True)
+    st.download_button("カレンダーに追加", data=ics_content.encode("utf-8"), file_name="yoyaku.ics", mime="text/calendar", use_container_width=True)
 
     if st.button("トップに戻る"):
         st.session_state['last_res'] = None
         st.rerun()
     st.stop()
 
-# 【入力画面：ヘッダー部分】
-st.markdown('<div style="text-align: center; margin-top: 2rem;">', unsafe_allow_html=True)
-st.markdown('<span class="nendo-badge">2026年度</span>', unsafe_allow_html=True)
-st.markdown(f'<h1 class="main-title">{config["branch_name"]}</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">確定申告学習会 予約フォーム</p>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# カード型コンテナの開始
-st.markdown('<div class="stFormContainer">', unsafe_allow_html=True)
+# 【入力画面】
+st.markdown('<p style="font-size: 24px; font-weight: bold; color: #4E7B4F; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
+st.title(f"{config['branch_name']}")
+st.subheader("確定申告学習会 予約フォーム")
 
 bunkai_list = [None] + list(config["bunkai_master"].keys())
 selected_bunkai = st.selectbox("あなたの所属分会名を教えてください", options=bunkai_list)
 
 if selected_bunkai:
     raw_date = config["bunkai_master"][selected_bunkai]
+    
+    # 日付を 西暦 YYYY/MM/DD 形式に正規化
     if "/" in str(raw_date):
         parts = str(raw_date).split("/")
+        # 設定シートが MM/DD 形式でも 2026/MM/DD に矯正
         formatted_date = f"2026/{int(parts[-2]):02}/{int(parts[-1]):02}"
     else:
         formatted_date = str(raw_date)
     
-    st.info(f"📅 **{selected_bunkai}** の受付日： **{formatted_date}**")
+    st.info(f"📅 {selected_bunkai} の受付日： **{formatted_date}**")
    
     name = st.text_input("お名前（必須）")
-    raw_tel = st.text_input("電話番号（必須・ハイフンなし）")
+    raw_tel = st.text_input("電話番号（必須・ハイフンなしで入力）")
     tel = raw_tel.replace("-", "").replace(" ", "")
-    email = st.text_input("メールアドレス（任意・控え送信先）", placeholder="example@email.com").strip()
+    email = st.text_input("メールアドレス（任意・控えを送る場合）", placeholder="example@email.com").strip()
     group_id = st.text_input("群番号")
-    
     tax_type = st.radio("申告区分", ["白色申告", "青色申告（電話予約のみ）"], horizontal=True)
-    if "青色" in tax_type:
-        st.error("青色申告の方は、直接支部へお電話で予約してください。")
-
+    
     has_invoice = st.radio("インボイスの登録はありますか？", ["なし", "あり"], horizontal=True)
     invoice_status = "なし"
     if has_invoice == "あり":
@@ -343,20 +258,46 @@ if selected_bunkai:
                     
                     payload = {
                         "datetime": f"{formatted_date} {final_time}",
-                        "name": name, "bunkai": selected_bunkai, "group_id": group_id,
-                        "tel": tel, "tax_type": tax_type, "invoice_status": invoice_status,
-                        "is_first_time": is_first_time, "staff_desk": f"{final_staff}番デスク", "uid": uid
+                        "name": name,
+                        "bunkai": selected_bunkai,
+                        "group_id": group_id,
+                        "tel": tel,
+                        "tax_type": tax_type,
+                        "invoice_status": invoice_status,
+                        "is_first_time": is_first_time,
+                        "staff_desk": f"{final_staff}番デスク",
+                        "uid": uid
                     }
                     
                     try:
                         response = requests.post(GAS_URL, json=payload, timeout=15)
                         if response.status_code == 200:
                             write_action_log(branch_doc, uid, "RESERVE_CREATE", "SUCCESS", f"Slot: {final_time}")
+                            
+                            save_text_for_email = (
+                                f"【{config['branch_name']} 予約控え】\n"
+                                f"---------------------------------\n"
+                                f"予約ID：{uid}\n"
+                                f"お名前：{name} 様\n"
+                                f"分会名：{selected_bunkai}\n"
+                                f"日時　：{formatted_date} {final_time}\n"
+                                f"場所　：{VENUE_NAME}\n"
+                                f"---------------------------------\n"
+                                f"■インボイス：{invoice_status}\n"
+                                f"■確定申告：{is_first_time}\n"
+                                f"---------------------------------\n"
+                                f"★変更・キャンセルは以下よりお願いします\n"
+                                f"{config['dify_url']}"
+                            )
+                            email_sent = False
+                            if email and "@" in email:
+                                email_sent = send_reservation_email(email, f"【{config['branch_name']}】予約控え {uid}", save_text_for_email)
+
                             st.session_state['last_res'] = {
                                 "uid": uid, "name": name, "bunkai": selected_bunkai,
                                 "date": formatted_date, "time": final_time,
                                 "invoice": invoice_status, "first_time": is_first_time,
-                                "email": email or None, "email_sent": False,
+                                "email": email or None, "email_sent": email_sent,
                             }
                             st.rerun()
                         else:
@@ -365,6 +306,3 @@ if selected_bunkai:
                         st.error(f"システムエラー: {e}")
                 else:
                     st.error("満員となりました。")
-
-# カード型コンテナの終了
-st.markdown('</div>', unsafe_allow_html=True)
