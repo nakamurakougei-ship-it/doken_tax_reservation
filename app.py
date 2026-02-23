@@ -280,7 +280,7 @@ if selected_bunkai:
         else:
             with st.spinner('予約枠を確保中...'):
                 # 1. 最新の空き状況を確認
-                final_time, final_staff = get_next_available_slot(branch_doc, target_date_str)
+                final_time, final_staff = get_next_available_slot(branch_doc, formatted_date)
                 
                 if final_time:
                     uid = get_or_create_uid(branch_doc, name, tel, selected_bunkai)
