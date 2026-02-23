@@ -68,7 +68,7 @@ def load_master_config(branch_id):
     bunkai_master = {r["分会名"]: r["受付日"] for r in records if r["分会名"]}
     return {"branch_name": branch_name, "dify_url": dify_url, "bunkai_master": bunkai_master}
 
-def get_next_available_slot(doc, target_date_str):
+def get_next_available_slot(doc, formatted_date):
     """最新の空き枠を検索"""
     sheet = doc.worksheet("予約台帳")
     all_records = sheet.get_all_values()[1:]
@@ -80,7 +80,7 @@ def get_next_available_slot(doc, target_date_str):
     for s_id in range(1, 11):
         staff_str = f"{s_id}番デスク"
         for t_str in TIME_SLOTS:
-            dt_key = f"{target_date_str} {t_str}"
+            dt_key = f"{formatted_date} {t_str}"
             if (dt_key, staff_str) not in occupied_slots:
                 return t_str, s_id
     return None, None
@@ -232,8 +232,16 @@ bunkai_list = [None] + list(config["bunkai_master"].keys())
 selected_bunkai = st.selectbox("あなたの所属分会名を教えてください", options=bunkai_list)
 
 if selected_bunkai:
-    target_date_str = config["bunkai_master"][selected_bunkai]
-    st.info(f"📅 {selected_bunkai} の受付日： **{target_date_str}**")
+    raw_date = config["bunkai_master"][selected_bunkai]
+    
+    # 日付を 0 埋めの MM/DD 形式に正規化 (例: 2/24 -> 02/24)
+    if "/" in str(raw_date):
+        parts = str(raw_date).split("/")
+        formatted_date = f"{int(parts[0]):02}/{int(parts[1]):02}"
+    else:
+        formatted_date = str(raw_date)
+    
+    st.info(f"📅 {selected_bunkai} の受付日： **{formatted_date}**")
    
     # リアルタイム反映のため、st.form は使用しない
     name = st.text_input("お名前（必須）")
@@ -272,7 +280,7 @@ if selected_bunkai:
         else:
             with st.spinner('予約枠を確保中...'):
                 # 1. 最新の空き状況を確認
-                final_time, final_staff = get_next_available_slot(branch_doc, target_date_str)
+                final_time, final_staff = get_next_available_slot(branch_doc, formatted_date)
                 
                 if final_time:
                     uid = get_or_create_uid(branch_doc, name, tel, selected_bunkai)
@@ -282,7 +290,7 @@ if selected_bunkai:
                     GAS_URL = "https://script.google.com/macros/s/AKfycbydoy0NUt60tUsQ4s1MAto29K_hbb7ePlEQtGCOE84TVxI2P4g191-RWMa5_L8QMlQ6rQ/exec"
                     
                     payload = {
-                        "datetime": f"{target_date_str} {final_time}",
+                        "datetime": f"{formatted_date} {final_time}",
                         "name": name,
                         "bunkai": selected_bunkai,
                         "group_id": group_id,
@@ -306,7 +314,7 @@ if selected_bunkai:
                                 f"予約ID：{uid}\n"
                                 f"お名前：{name} 様\n"
                                 f"分会名：{selected_bunkai}\n"
-                                f"日時　：{target_date_str} {final_time}\n"
+                                f"日時　：{formatted_date} {final_time}\n"
                                 f"場所　：{VENUE_NAME}\n"
                                 f"---------------------------------\n"
                                 f"■インボイス：{invoice_status}\n"
@@ -324,7 +332,7 @@ if selected_bunkai:
                                 )
                             st.session_state['last_res'] = {
                                 "uid": uid, "name": name, "bunkai": selected_bunkai,
-                                "date": target_date_str, "time": final_time,
+                                "date": formatted_date, "time": final_time,
                                 "invoice": invoice_status, "first_time": is_first_time,
                                 "email": email or None, "email_sent": email_sent,
                             }
