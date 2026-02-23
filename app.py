@@ -171,7 +171,7 @@ VENUE_NAME = "西多摩支部会館３階"
 # 【完了画面】
 if 'last_res' in st.session_state and st.session_state['last_res']:
     res = st.session_state['last_res']
-    st.markdown('<p style="font-size: 24px; font-weight: bold; color: #4E7B4F; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size: 24px; font-weight: bold; color: #222222; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
     st.title(f"✅ {config['branch_name']}")
     st.subheader("予約が確定しました")
     
@@ -206,7 +206,7 @@ if 'last_res' in st.session_state and st.session_state['last_res']:
     st.stop()
 
 # 【入力画面】
-st.markdown('<p style="font-size: 24px; font-weight: bold; color: #4E7B4F; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
+st.markdown('<p style="font-size: 24px; font-weight: bold; color: #222222; margin-bottom: -20px;">2026年度</p>', unsafe_allow_html=True)
 st.title(f"{config['branch_name']}")
 st.subheader("確定申告学習会 予約フォーム")
 
